@@ -1,0 +1,38 @@
+[{
+  "url": "https://help.smartsupp.com/",
+  "crawl": {
+    "loadedUrl": "https://help.smartsupp.com/",
+    "loadedTime": "2023-05-30T15:12:37.883Z",
+    "referrerUrl": "https://help.smartsupp.com/",
+    "depth": 0
+  },
+  "metadata": {
+    "canonicalUrl": "https://help.smartsupp.com/en_US",
+    "title": "Smartsupp Support",
+    "description": "Smartsupp Support Center helps you to find FAQ, how-to guides and step-by-step tutorials.",
+    "author": null,
+    "keywords": "",
+    "languageCode": "en_US"
+  },
+  "screenshotUrl": null,
+  "text": "Smartsupp's Help Center \nFind answers to technical issues in our comprehensive tutorials \nPopular articles \nMore tutorials"
+},
+{
+  "url": "https://help.smartsupp.com/en_US/chatbox/contact-form",
+  "crawl": {
+    "loadedUrl": "https://help.smartsupp.com/en_US/chatbox/contact-form",
+    "loadedTime": "2023-05-30T15:12:48.570Z",
+    "referrerUrl": "https://help.smartsupp.com/",
+    "depth": 1
+  },
+  "metadata": {
+    "canonicalUrl": "https://help.smartsupp.com/en_US/chatbox/contact-form",
+    "title": "Smartsupp — Contact form",
+    "description": "Why to use the Contact form? In order to always be able to reply to a customer’s message, we recommend using the Contact form in which the customers write ",
+    "author": null,
+    "keywords": "",
+    "languageCode": "en_US"
+  },
+  "screenshotUrl": null,
+  "text": "Why to use the Contact form?\nIn order to always be able to reply to a customer’s message, we recommend using the Contact form in which the customers write their contact info before asking you a question. This will allow you to reply to any online or offline messages even after the visitor’s left the site.\nIf you have not collected the contact information from the visitor, it is not possible to reply via live chat after they have left the site and nothing can be entered into the text field of the message.\nHow to set the Contact form? \nThe form in the offline mode is always on to collect the customer’s contact information, so you will not miss any of your customers’ questions when you are not online. If you are a STANDARD or PRO package customer, you can set the form to collect customers’ contact info even in the online state. How to do it? Simply go to Settings (1) → Chatbox (2) → Contact form (3) and just activate the “Show the form also when you are online” (4) option.\nYou can also customize which information you want to collect from your customers. Aside from email, which is always obligatory, you can choose to also collect names, phone or groups (groups work for PRO package users only).\nStill confused? Contact us via the chat box in your dashboard and we’ll be happy to get in touch with you. Please note that customer service is included only in paid packages."
+}]

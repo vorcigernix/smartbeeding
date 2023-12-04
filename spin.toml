@@ -1,0 +1,25 @@
+spin_manifest_version = "1"
+authors = ["Mikkel Mørk Hegnhøj <mikkel@fermyon.com>", "Adam Sobotka <vorcigernix@gmail.com>"]
+description = "PoC app to find relevant text in embeddings from Apify scrape"
+name = "embedding-smartsupp"
+trigger = { type = "http", base = "/" }
+version = "0.1.0"
+
+[[component]]
+id = "embeddings"
+source = "embeddings/target/wasm32-wasi/release/embeddings.wasm"
+sqlite_databases = ["default"]
+ai_models = ["all-minilm-l6-v2"]
+[component.trigger]
+route = "/embeddings/..."
+[component.build]
+command = "cargo build --target wasm32-wasi --release"
+workdir = "embeddings"
+watch = ["src/**/*.rs", "Cargo.toml"]
+
+[[component]]
+source = { url = "https://github.com/fermyon/spin-fileserver/releases/download/v0.0.3/spin_static_fs.wasm", digest = "sha256:38bf971900228222f7f6b2ccee5051f399adca58d71692cdfdea98997965fd0d" }
+id = "static"
+files = [ { source = "assets", destination = "/" } ]
+[component.trigger]
+route = "/..."
