@@ -88,21 +88,40 @@ fn create_paragraphs_records(req: Request, _params: Params) -> Result<Response> 
     };
     let paragraphs: Vec<Paragraph> = scrapeitems.iter().map(|e| e.to_paragraph()).collect();
     let text: Vec<&str> = paragraphs.iter().map(|e| e.text.as_str()).collect();
-    let embedding_result: EmbeddingsResult = match generate_embeddings(AllMiniLmL6V2, &text) {
-        Ok(er) => {
-            trace!("Generated embeddings: {:?}", er);
-            er
-        }
-        Err(err) => {
-            error!(
-                "Failed to generate embeddings when calling Spin llm: {:?}",
-                err
-            );
-            return Err(err.into());
-        }
-    };
+    let chunks = text.chunks(10);
+    let mut results = Vec::new();
+    for chunk in chunks {
+        let embedding_result: EmbeddingsResult = match generate_embeddings(AllMiniLmL6V2, chunk) {
+            Ok(er) => {
+                trace!("Generated embeddings: {:?}", er);
+                er
+            }
+            Err(err) => {
+                error!(
+                    "Failed to generate embeddings when calling Spin llm: {:?}",
+                    err
+                );
+                return Err(err.into());
+            }
+        };
+        results.push(embedding_result);
+    }
+    let finalresult: EmbeddingsResult = results.into_iter().next().unwrap();
+    // let embedding_result: EmbeddingsResult = match generate_embeddings(AllMiniLmL6V2, &text) {
+    //     Ok(er) => {
+    //         trace!("Generated embeddings: {:?}", er);
+    //         er
+    //     }
+    //     Err(err) => {
+    //         error!(
+    //             "Failed to generate embeddings when calling Spin llm: {:?}",
+    //             err
+    //         );
+    //         return Err(err.into());
+    //     }
+    // };
 
-    match store_paragraph_records(paragraphs, embedding_result) {
+    match store_paragraph_records(paragraphs, finalresult) {
         Ok(num_rec) => {
             info!("Generated {:?} embeddings", num_rec);
             Ok(http::Response::builder()
