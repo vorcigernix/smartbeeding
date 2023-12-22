@@ -74,7 +74,7 @@ fn get_paragraphs(req: Request, _params: Params) -> Result<Response> {
 }
 
 fn create_paragraphs_records(req: Request, _params: Params) -> Result<Response> {
-    let scrapeitems: Vec<Page> = match serde_json::from_slice(
+    let pages: Vec<Page> = match serde_json::from_slice(
         req.body()
             .as_deref()
             .map(|b| -> &[u8] { b })
@@ -86,42 +86,25 @@ fn create_paragraphs_records(req: Request, _params: Params) -> Result<Response> 
             return Err(err.into());
         }
     };
-    let paragraphs: Vec<Paragraph> = scrapeitems.iter().map(|e| e.to_paragraph()).collect();
-    let text: Vec<&str> = paragraphs.iter().map(|e| e.text.as_str()).collect();
-    let chunks = text.chunks(10);
-    let mut results = Vec::new();
-    for chunk in chunks {
-        let embedding_result: EmbeddingsResult = match generate_embeddings(AllMiniLmL6V2, chunk) {
-            Ok(er) => {
-                trace!("Generated embeddings: {:?}", er);
-                er
-            }
-            Err(err) => {
-                error!(
-                    "Failed to generate embeddings when calling Spin llm: {:?}",
-                    err
-                );
-                return Err(err.into());
-            }
-        };
-        results.push(embedding_result);
-    }
-    let finalresult: EmbeddingsResult = results.into_iter().next().unwrap();
-    // let embedding_result: EmbeddingsResult = match generate_embeddings(AllMiniLmL6V2, &text) {
-    //     Ok(er) => {
-    //         trace!("Generated embeddings: {:?}", er);
-    //         er
-    //     }
-    //     Err(err) => {
-    //         error!(
-    //             "Failed to generate embeddings when calling Spin llm: {:?}",
-    //             err
-    //         );
-    //         return Err(err.into());
-    //     }
-    // };
 
-    match store_paragraph_records(paragraphs, finalresult) {
+    let paragraphs: Vec<Paragraph> = pages.into_iter().map(|page| page.to_paragraph()).collect();
+
+    let text: Vec<&str> = paragraphs.iter().map(|e| e.text.as_str()).collect();
+    let embedding_result: EmbeddingsResult = match generate_embeddings(AllMiniLmL6V2, &text) {
+        Ok(er) => {
+            trace!("Generated embeddings: {:?}", er);
+            er
+        }
+        Err(err) => {
+            error!(
+                "Failed to generate embeddings when calling Spin llm: {:?}",
+                err
+            );
+            return Err(err.into());
+        }
+    };
+
+    match store_paragraph_records(paragraphs, embedding_result) {
         Ok(num_rec) => {
             info!("Generated {:?} embeddings", num_rec);
             Ok(http::Response::builder()
@@ -285,32 +268,11 @@ impl<'a> TryFrom<sqlite::Row<'a>> for Paragraph {
     }
 }
 
+//AI model structure
 #[derive(Debug, Serialize, Deserialize, Clone)]
 struct Paragraph {
     reference: String,
     text: String,
-}
-
-#[derive(Serialize, Deserialize)]
-struct Metadata {
-    title: String,
-    // Include other fields as needed
-}
-
-#[derive(Serialize, Deserialize)]
-struct Page {
-    url: String,
-    metadata: Metadata,
-    text: String,
-}
-
-impl Page {
-    fn to_paragraph(&self) -> Paragraph {
-        Paragraph {
-            reference: self.metadata.title.clone(),
-            text: self.text.clone(),
-        }
-    }
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -320,6 +282,49 @@ struct ParagraphRecord {
     text: String,
 }
 
+//API input structure
+#[derive(Debug, Serialize, Deserialize)]
+struct Crawl {
+    #[serde(rename = "loadedUrl")]
+    loaded_url: String,
+    #[serde(rename = "loadedTime")]
+    loaded_time: String,
+    #[serde(rename = "referrerUrl")]
+    referrer_url: String,
+    depth: i32,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+struct Metadata {
+    #[serde(rename = "canonicalUrl")]
+    canonical_url: String,
+    title: String,
+    description: String,
+    author: Option<String>,
+    keywords: String,
+    #[serde(rename = "languageCode")]
+    language_code: String,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+struct Page {
+    url: String,
+    crawl: Crawl,
+    metadata: Metadata,
+    #[serde(rename = "screenshotUrl")]
+    screenshot_url: Option<String>,
+    text: String,
+}
+impl Page {
+    pub fn to_paragraph(&self) -> Paragraph {
+        Paragraph {
+            reference: self.url.clone(),
+            text: self.text.clone(),
+        }
+    }
+}
+
+//Similarity structures
 #[derive(Serialize)]
 struct SimilarityResultSet {
     sentence: String,

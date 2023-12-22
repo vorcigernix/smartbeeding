@@ -1,23 +1,4 @@
 [{
-  "url": "https://help.smartsupp.com/",
-  "crawl": {
-    "loadedUrl": "https://help.smartsupp.com/",
-    "loadedTime": "2023-05-30T15:12:37.883Z",
-    "referrerUrl": "https://help.smartsupp.com/",
-    "depth": 0
-  },
-  "metadata": {
-    "canonicalUrl": "https://help.smartsupp.com/en_US",
-    "title": "Smartsupp Support",
-    "description": "Smartsupp Support Center helps you to find FAQ, how-to guides and step-by-step tutorials.",
-    "author": null,
-    "keywords": "",
-    "languageCode": "en_US"
-  },
-  "screenshotUrl": null,
-  "text": "Smartsupp's Help Center \nFind answers to technical issues in our comprehensive tutorials \nPopular articles \nMore tutorials"
-},
-{
   "url": "https://help.smartsupp.com/en_US/chatbox/contact-form",
   "crawl": {
     "loadedUrl": "https://help.smartsupp.com/en_US/chatbox/contact-form",
