@@ -1,5 +1,3 @@
-use std::io::Write;
-
 use anyhow::{Context, Result};
 use log::{error, info, trace, LevelFilter::Info};
 use serde::{Deserialize, Serialize};
@@ -8,7 +6,7 @@ use spin_sdk::{
     http::{Params, Request, Response},
     http_component, http_router,
     llm::{
-        generate_embeddings, infer_with_options, EmbeddingModel::AllMiniLmL6V2, EmbeddingsResult,
+        generate_embeddings, EmbeddingModel::AllMiniLmL6V2, EmbeddingsResult,
         InferencingModel::Llama2Chat,
     },
     sqlite::{self, Connection, ValueResult},
@@ -110,24 +108,10 @@ fn create_paragraphs_records(req: Request, _params: Params) -> Result<Response> 
     }
 }
 fn summarize_text(_text: &str) -> Result<String> {
-    const PROMPT: &str = r#"\
-        <<SYS>>
-        You are a bot that generates summary of the text. In a style similar to the original article, respond with 5 lines that cover the key points of the text.
-        <</SYS>>
-        <INST>
+    const PROMPT: &str = r#"<s>[INST]<<SYS>>You are a friendly summarization assistant. Take the input text and return a summary in three sentences. Please keep your responses concise, up to three sentences..<</SYS>>Please summarize following text: {SENTENCE} [/INST]"#;
 
-        </INST>
-
-        User: {SENTENCE}
-        "#;
-    let inferencing_result = infer_with_options(
-        Llama2Chat,
-        &PROMPT.replace("{SENTENCE}", _text),
-        spin_sdk::llm::InferencingParams {
-            max_tokens: 500,
-            ..Default::default()
-        },
-    )?;
+    let inferencing_result =
+        spin_sdk::llm::infer(Llama2Chat, &PROMPT.replace("{SENTENCE}", _text))?;
     Ok(inferencing_result.text)
 }
 
