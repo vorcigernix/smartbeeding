@@ -86,13 +86,7 @@ fn create_paragraphs_records(req: Request, _params: Params) -> Result<Response> 
 
     let summaries: Vec<String> = paragraphs
         .iter()
-        .filter_map(|e| match summarize_text(e.text.as_str()) {
-            Ok(summary) => Some(summary),
-            Err(err) => {
-                error!("Failed to summarize text: {:?}", err);
-                None
-            }
-        })
+        .filter_map(|e| summarize_text(&e.text).ok())
         .collect();
 
     let summaries_str: Vec<&str> = summaries.iter().map(AsRef::as_ref).collect();
