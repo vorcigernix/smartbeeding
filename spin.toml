@@ -9,7 +9,7 @@ version = "0.1.0"
 id = "embeddings"
 source = "embeddings/target/wasm32-wasi/release/embeddings.wasm"
 sqlite_databases = ["default"]
-ai_models = ["all-minilm-l6-v2"]
+ai_models = ["all-minilm-l6-v2","llama2-chat"]
 [component.trigger]
 route = "/embeddings/..."
 [component.build]

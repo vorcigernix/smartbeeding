@@ -1,3 +1,5 @@
+use std::io::Write;
+
 use anyhow::{Context, Result};
 use log::{error, info, trace, LevelFilter::Info};
 use serde::{Deserialize, Serialize};
@@ -5,7 +7,10 @@ use serde_json::*;
 use spin_sdk::{
     http::{Params, Request, Response},
     http_component, http_router,
-    llm::{generate_embeddings, EmbeddingModel::AllMiniLmL6V2, EmbeddingsResult},
+    llm::{
+        generate_embeddings, infer_with_options, EmbeddingModel::AllMiniLmL6V2, EmbeddingsResult,
+        InferencingModel::Llama2Chat,
+    },
     sqlite::{self, Connection, ValueResult},
 };
 
@@ -74,35 +79,26 @@ fn get_paragraphs(req: Request, _params: Params) -> Result<Response> {
 }
 
 fn create_paragraphs_records(req: Request, _params: Params) -> Result<Response> {
-    let pages: Vec<Page> = match serde_json::from_slice(
-        req.body()
-            .as_deref()
-            .map(|b| -> &[u8] { b })
-            .unwrap_or_default(),
-    ) {
-        Ok(vec) => vec,
-        Err(err) => {
-            error!("Failed to serialize paragraphs");
-            return Err(err.into());
-        }
-    };
+    let pages: Vec<Page> = serde_json::from_slice(req.body().as_deref().unwrap_or_default())
+        .context("Failed to serialize paragraphs")?;
 
     let paragraphs: Vec<Paragraph> = pages.into_iter().map(|page| page.to_paragraph()).collect();
 
-    let text: Vec<&str> = paragraphs.iter().map(|e| e.text.as_str()).collect();
-    let embedding_result: EmbeddingsResult = match generate_embeddings(AllMiniLmL6V2, &text) {
-        Ok(er) => {
-            trace!("Generated embeddings: {:?}", er);
-            er
-        }
-        Err(err) => {
-            error!(
-                "Failed to generate embeddings when calling Spin llm: {:?}",
-                err
-            );
-            return Err(err.into());
-        }
-    };
+    let summaries: Vec<String> = paragraphs
+        .iter()
+        .filter_map(|e| match summarize_text(e.text.as_str()) {
+            Ok(summary) => Some(summary),
+            Err(err) => {
+                error!("Failed to summarize text: {:?}", err);
+                None
+            }
+        })
+        .collect();
+
+    let summaries_str: Vec<&str> = summaries.iter().map(AsRef::as_ref).collect();
+
+    let embedding_result: EmbeddingsResult = generate_embeddings(AllMiniLmL6V2, &summaries_str)
+        .context("Failed to generate embeddings when calling Spin llm")?;
 
     match store_paragraph_records(paragraphs, embedding_result) {
         Ok(num_rec) => {
@@ -118,6 +114,27 @@ fn create_paragraphs_records(req: Request, _params: Params) -> Result<Response> 
                 .body(Some("Failed to store records".into()))?)
         }
     }
+}
+fn summarize_text(_text: &str) -> Result<String> {
+    const PROMPT: &str = r#"\
+        <<SYS>>
+        You are a bot that generates summary of the text. In a style similar to the original article, respond with 5 lines that cover the key points of the text.
+        <</SYS>>
+        <INST>
+
+        </INST>
+
+        User: {SENTENCE}
+        "#;
+    let inferencing_result = infer_with_options(
+        Llama2Chat,
+        &PROMPT.replace("{SENTENCE}", _text),
+        spin_sdk::llm::InferencingParams {
+            max_tokens: 500,
+            ..Default::default()
+        },
+    )?;
+    Ok(inferencing_result.text)
 }
 
 fn store_paragraph_records(
