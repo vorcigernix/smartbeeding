@@ -77,20 +77,46 @@ fn get_paragraphs(req: Request, _params: Params) -> Result<Response> {
 }
 
 fn create_paragraphs_records(req: Request, _params: Params) -> Result<Response> {
-    let pages: Vec<Page> = serde_json::from_slice(req.body().as_deref().unwrap_or_default())
-        .context("Failed to serialize paragraphs")?;
+    let paragraphs: Vec<Page> = match serde_json::from_slice(
+        req.body()
+            .as_deref()
+            .map(|b| -> &[u8] { b })
+            .unwrap_or_default(),
+    ) {
+        Ok(vec) => vec,
+        Err(err) => {
+            error!("Failed to serialize paragraphs");
+            return Err(err.into());
+        }
+    };
 
-    let paragraphs: Vec<Paragraph> = pages.into_iter().map(|page| page.to_paragraph()).collect();
-
-    let summaries: Vec<String> = paragraphs
+    let text: Vec<&str> = paragraphs.iter().map(|e| e.text.as_str()).collect();
+    let summaries: Vec<String> = text
         .iter()
-        .filter_map(|e| summarize_text(&e.text).ok())
+        .map(|e| match summarize_text(e) {
+            Ok(summary) => summary,
+            Err(err) => {
+                error!("Failed to summarize text: {:?}", err);
+                String::new() // return an empty string or handle the error appropriately
+            }
+        })
         .collect();
 
-    let summaries_str: Vec<&str> = summaries.iter().map(AsRef::as_ref).collect();
+    let summary: Vec<&str> = summaries.iter().map(AsRef::as_ref).collect();
 
-    let embedding_result: EmbeddingsResult = generate_embeddings(AllMiniLmL6V2, &summaries_str)
-        .context("Failed to generate embeddings when calling Spin llm")?;
+    let embedding_result: EmbeddingsResult = match generate_embeddings(AllMiniLmL6V2, &summary) {
+        Ok(er) => {
+            trace!("Generated embeddings: {:?}", er);
+            er
+        }
+        Err(err) => {
+            error!(
+                "Failed to generate embeddings when calling Spin llm: {:?}",
+                err
+            );
+            return Err(err.into());
+        }
+    };
 
     match store_paragraph_records(paragraphs, embedding_result) {
         Ok(num_rec) => {
@@ -107,8 +133,9 @@ fn create_paragraphs_records(req: Request, _params: Params) -> Result<Response> 
         }
     }
 }
+
 fn summarize_text(_text: &str) -> Result<String> {
-    const PROMPT: &str = r#"<s>[INST]<<SYS>>You are a friendly summarization assistant. Take the input text and return a summary in three sentences. Please keep your responses concise, up to three sentences..<</SYS>>Please summarize following text: {SENTENCE} [/INST]"#;
+    const PROMPT: &str = r#"<s>[INST]<<SYS>>You are a professional summarization assistant. Take the input text and return a summary in three sentences. Please keep your responses concise, up to three sentences..<</SYS>>Please summarize following text: {SENTENCE} [/INST]"#;
 
     let inferencing_result =
         spin_sdk::llm::infer(Llama2Chat, &PROMPT.replace("{SENTENCE}", _text))?;
@@ -116,7 +143,7 @@ fn summarize_text(_text: &str) -> Result<String> {
 }
 
 fn store_paragraph_records(
-    paragraphs: Vec<Paragraph>,
+    paragraphs: Vec<Page>,
     embedding_result: EmbeddingsResult,
 ) -> Result<usize> {
     let conn = Connection::open_default()?;
@@ -126,7 +153,7 @@ fn store_paragraph_records(
         let blob = serde_json::to_vec(&vec)?;
 
         let query_params = [
-            sqlite::ValueParam::Text(e.reference.as_str()),
+            sqlite::ValueParam::Text(&e.metadata.title.as_str()),
             sqlite::ValueParam::Text(e.text.as_str()),
             sqlite::ValueParam::Blob(blob.as_slice()),
         ];
